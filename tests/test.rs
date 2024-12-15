@@ -20,7 +20,7 @@ fn it_works1() {
 }
 
 #[test_case]
-fn test_uart() {
+fn test_igb() {
     let igb = get_igb();
 
     debug!("igb start");
