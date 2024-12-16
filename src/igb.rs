@@ -1,6 +1,24 @@
-use core::ptr::NonNull;
+#![allow()]
+use core::{default, ptr::NonNull};
 
 use log::{debug, info};
+
+const DRIVER_NAME: &str = "igb";
+
+//* 意义不明的三个常量 */
+const MAX_QUEUES: u16 = 64;
+
+const PKT_BUF_ENTRY_SIZE: usize = 2048;
+const MIN_MEMPOOL_SIZE: usize = 4096;
+//* 意义不明的三个常量 */
+
+
+enum NicResolution{
+    IgbFcNone,
+    IgbFcRxPause,
+    IgbFcTxPause,
+    IgbFcFull,
+}
 
 pub struct Igb {bar0: NonNull<u8>}
 
@@ -184,6 +202,36 @@ impl Igb {
             }
         }
     }
+
+    pub fn phy_link_setup(&self) {
+        let mut ctrl_ext = unsafe { self.bar0.add(0x00018).cast::<u32>().read_volatile() };
+        ctrl_ext = ctrl_ext & !(0b11<<22) | 0b00<<22;
+        unsafe { self.bar0.add(0x00018).cast::<u32>().write_volatile(ctrl_ext) };
+        debug!("phy link mode direct copper");
+        let ana = self.read_mdi(4);
+        let anbpa = self.read_mdi(5);
+        let local = ana & 0b11<<10;
+        let partner = anbpa & 0b11<<10;
+        match local {
+            0 => todo!(),
+            default => todo!()
+        }
+    }
+
+    pub fn serdes_link_setup(&self) {
+        todo!()
+    }
+
+    pub fn sgmii_link_setup(&self) {
+        todo!()
+    }
+
 }
 
+pub struct IgbNetBuf {
 
+}
+
+pub struct IgbDevice {
+
+}

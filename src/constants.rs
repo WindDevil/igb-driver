@@ -92,3 +92,4 @@ pub fn IGB_BY_MAC(_hw: u32, _r: u32) -> u32 {
 /* General Registers */
 pub const IGB_CTRL: u32 = 0x00000;
 pub const IGB_STATUS: u32 = 0x00008;
+pub const IGB_CTRL_EXT: u32 = 0x00018;
