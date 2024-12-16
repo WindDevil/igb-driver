@@ -1,16 +1,35 @@
 use log::{debug, error};
+use IgbFlowControlType::*;
 
 use crate::{
     err::IgbError,
     regs::{Reg, SwFwSync, MDIC, SWSM},
 };
 
+//* PHY Reg */
 const PHY_CONTROL: u32 = 0;
+const PHY_AUTO_NEGOTIATION_ADVERTISEMENT: u32 = 4;
+const PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY: u32 = 5;
+//* PHY Reg Mask */
+//* PHY_AUTO_NEGOTIATION_ADVERTISEMENT Mask */
+const PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE: u16 = 1<<10;
+const PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR: u16 = 1<<11;
+//* PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY Mask */
+const PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE: u16 = 1<<10;
+const PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR: u16 = 1<<11;
+
 const MII_CR_POWER_DOWN: u16 = 0x0800;
 
 pub struct Phy {
     reg: Reg,
     addr: u32,
+}
+
+pub enum IgbFlowControlType{
+    IgbFCNone,
+    IgbFCTxPause,
+    IgbFCRxPause,
+    IgbFCFull
 }
 
 impl Phy {
@@ -67,7 +86,93 @@ impl Phy {
         mii_reg &= !MII_CR_POWER_DOWN;
         self.write_mdic(PHY_CONTROL, mii_reg)
     }
+
+    pub fn get_fc_type(&self) -> Result<IgbFlowControlType, IgbError> {
+        let ana = self.read_mdic(PHY_AUTO_NEGOTIATION_ADVERTISEMENT)?;
+        let anbpa = self.read_mdic(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY)?;
+        /* Two bits in the Auto Negotiation Advertisement Register
+		 * (Address 4) and two bits in the Auto Negotiation Base
+		 * Page Ability Register (Address 5) determine flow control
+		 * for both the PHY and the link partner.  The following
+		 * table, taken out of the IEEE 802.3ab/D6.0 dated March 25,
+		 * 1999, describes these PAUSE resolution bits and how flow
+		 * control is determined based upon these settings.
+		 * NOTE:  DC = Don't Care
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | NIC Resolution
+		 *-------|---------|-------|---------|--------------------
+		 *   0   |    0    |  DC   |   DC    | e1000_fc_none
+		 *   0   |    1    |   0   |   DC    | e1000_fc_none
+		 *   0   |    1    |   1   |    0    | e1000_fc_none
+		 *   0   |    1    |   1   |    1    | e1000_fc_tx_pause
+		 *   1   |    0    |   0   |   DC    | e1000_fc_none
+		 *   1   |   DC    |   1   |   DC    | e1000_fc_full
+		 *   1   |    1    |   0   |    0    | e1000_fc_none
+		 *   1   |    1    |   0   |    1    | e1000_fc_rx_pause
+		 *
+		 * Are both PAUSE bits set to 1?  If so, this implies
+		 * Symmetric Flow Control is enabled at both ends.  The
+		 * ASM_DIR bits are irrelevant per the spec.
+		 *
+		 * For Symmetric Flow Control:
+		 *
+		 *   LOCAL DEVICE  |   LINK PARTNER
+		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
+		 *-------|---------|-------|---------|--------------------
+		 *   1   |   DC    |   1   |   DC    | E1000_fc_full
+		 *
+		 */
+        if !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE) 
+        && !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR){
+            Ok(IgbFCNone)
+        }else if !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE) 
+        && ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE){
+            Ok(IgbFCNone)
+        }else if !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR){
+            Ok(IgbFCNone)
+        }else if !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE)
+        && anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR){
+            Ok(IgbFCTxPause)
+        }else if ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && !ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE){
+            Ok(IgbFCNone)
+        }else if ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE) {
+            Ok(IgbFCFull)
+        }else if ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR) {
+            Ok(IgbFCNone)
+        }else if ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_PAUSE)
+        && ana.check_bit(PHY_AUTO_NEGOTIATION_ADVERTISEMENT_ASM_DIR)
+        && !anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE)
+        && anbpa.check_bit(PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR) {
+            Ok(IgbFCRxPause)
+        }else {
+            Err(IgbError::NotImplemented)
+        }
+    }
 }
+
+trait CheckBit {
+    fn check_bit(&self, mask: u16) -> bool;
+}
+
+impl CheckBit for u16 {
+    fn check_bit(&self, mask: u16) -> bool {
+        (self & mask) != 0
+    }
+}
+
 
 pub struct Synced {
     reg: Reg,

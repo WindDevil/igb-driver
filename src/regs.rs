@@ -171,6 +171,9 @@ bitflags! {
     pub struct CTRL_EXT: u32 {
         const EE_RST = 1 << 13;
         const DRV_LOAD = 1 << 28;
+        const LINK_MODE_DIRECT_COPPER = 0x00000000;
+        const LINK_MODE_SGMII = 0x00800000;
+        const LINK_MODE_INTERNAL_SERDES_INTERFACE = 0x00C00000;
     }
 }
 
