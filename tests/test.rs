@@ -31,9 +31,9 @@ fn test_work() {
 
     debug!("mac: {:x?}", mac);
 
-    // while !igb.status().link_up {
-    //     sleep(Duration::from_millis(10));
-    // }
+    while !igb.status().link_up {
+        sleep(Duration::from_millis(10));
+    }
 
     info!("status: {:?}", igb.status());
 }
