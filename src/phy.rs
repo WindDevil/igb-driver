@@ -19,6 +19,9 @@ const PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_PAUSE: u16 = 1<<10;
 const PHY_AUTO_NEGOTIATION_BASE_PAGE_ABILITY_ASM_DIR: u16 = 1<<11;
 
 const MII_CR_POWER_DOWN: u16 = 0x0800;
+const MII_CR_AUTO_NEG_EN: u16 = 1<<12;
+const MII_CR_RESTART_AUTO_NEG: u16 = 1<<9;
+
 
 pub struct Phy {
     reg: Reg,
@@ -84,6 +87,7 @@ impl Phy {
     pub fn power_up(&self) -> Result<(), IgbError> {
         let mut mii_reg = self.read_mdic(PHY_CONTROL)?;
         mii_reg &= !MII_CR_POWER_DOWN;
+        mii_reg |= MII_CR_AUTO_NEG_EN | MII_CR_RESTART_AUTO_NEG;
         self.write_mdic(PHY_CONTROL, mii_reg)
     }
 
