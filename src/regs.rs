@@ -90,6 +90,13 @@ impl Reg {
             (high >> 8 & 0xff) as u8,
         ]
     }
+
+    pub fn setup_mta(&self) {
+        for i in 0..128{
+            self.write_32(mta(i),0x0000_0000);
+        }
+    }
+
 }
 
 pub trait FlagReg: Flags<Bits = u32> {
@@ -105,7 +112,7 @@ fn ral(i: u32) -> u32 {
     if i <= 15 {
         0x05400 + i * 8
     } else {
-        0x0A200 + i * 8
+        0x054E0 + (i - 16) * 8
     }
 }
 
@@ -113,8 +120,85 @@ fn rah(i: u32) -> u32 {
     if i <= 15 {
         0x05404 + i * 8
     } else {
-        0x0A204 + i * 8
+        0x054E4 + (i - 16) * 8
     }
+}
+
+/* Receive Descriptor Base Address Low*/
+fn rdbal(i: u32) -> u32 {
+    if i <4{
+        0x02800+i*0x100
+    } else {
+        0x0C000+i*0x040
+    }
+}
+
+/* Receive Descriptor Base Address High*/
+fn rdbah(i: u32) -> u32 {
+    if i <4{
+        0x02804+i*0x100
+    } else {
+        0x0C004+i*0x040
+    }
+}
+
+/* Receive Descriptor Ring Length */
+fn rdlen(i: u32) -> u32 {
+    if i <4{
+        0x02808+i*0x100
+    } else {
+        0x0C008+i*0x040
+    }
+}
+
+/* Receive Descriptor Head */
+fn rdh(i: u32) -> u32 {
+    if i <4{
+        0x02810+i*0x100
+    } else {
+        0x0C010+i*0x040
+    }
+}
+
+/* Receive Descriptor Tail */
+fn rdt(i: u32) -> u32 {
+    if i <4{
+        0x02818+i*0x100
+    } else {
+        0x0C018+i*0x040
+    }
+}
+
+/* R */
+fn rxdctl(i: u32) -> u32 {
+    if i <4{
+        0x02828+i*0x100
+    } else {
+        0x0C028+i*0x040
+    }
+}
+
+/* */
+fn rxctrl(i: u32) -> u32 {
+    if i <4{
+        0x02814+i*0x100
+    } else {
+        0x0C014+i*0x040
+    }
+}
+
+/* Split and Replication Receive Control */
+fn srrctl(i: u32) -> u32 {
+    if i <4{
+        0x0280C+i*0x100
+    } else {
+        0x0C00C+i*0x040
+    }
+}
+
+/* Packet Split Receive Type */
+fn psrtype(i: u32) -> u32 {
+    0x05480+i*4
 }
 
 bitflags! {

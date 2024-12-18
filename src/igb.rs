@@ -78,8 +78,13 @@ impl Igb {
         // disable rx when configing.
         self.reg.write_reg(RCTL::empty());
 
-        self.rx_ring.init();
+        // set up multicast table array.
+        self.reg.setup_mta();
 
+        self.rx_ring.init();
+         
+        // it is best to leave the receive logic disabled (EN = 0b) until after the receive descriptor ring has been initialized
+        // If VLANs are not used, software should clear VFE.
         self.reg.write_reg(RCTL::RXEN | RCTL::SZ_4096);
     }
 
@@ -132,6 +137,12 @@ impl Igb {
             }
         }
         Ok(())
+    }
+
+    fn setup_vlan(&mut self) {
+        self.reg.write_reg(RCTL::VFE);
+        //TODO setup VFTA
+        
     }
 
     pub fn mac(&self) -> [u8; 6] {
