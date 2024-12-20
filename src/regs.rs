@@ -308,6 +308,21 @@ fn mdef(i: u32) -> u32 {
     0x05890 + i*4
 }
 
+//* 发送相关寄存器 */
+pub fn txdctl(i: u32) -> u32 {
+    0x0E028 + i*0x40
+}
+pub const TXDCTL_ENABLE:u32 = 0x02000000;
+pub const TXDCTL_WTHRESH_MASK:u32 = 0x001F0000;
+pub const TXDCTL_WTHRESH_MASK_1B:u32 = 0x0010000;
+
+pub fn tdh(i: u32) -> u32 {
+    0x0E010 + i*0x40
+}
+
+pub fn tdt(i: u32) -> u32 {
+    0x0E018 + i*0x40
+}
 
 bitflags! {
     pub struct CTRL: u32 {
@@ -423,6 +438,16 @@ bitflags! {
 impl FlagReg for TCTL {
     const REG: u32 = 0x00400;
 }
+
+bitflags! {
+    pub struct TCTL_EXT: u32 {
+        const COLD = 0x000FFC00;  // Collision Distance
+        const COLD_PHY_DEFAULT = 0x10400;
+        const COLD_PHY_10MBPS = 0x11800;
+        const COLD_PHY_100MBPS = 0x13000;
+    }
+}
+
 
 bitflags! {
     pub struct MDIC: u32 {

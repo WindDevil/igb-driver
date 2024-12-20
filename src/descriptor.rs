@@ -1,4 +1,10 @@
-pub trait Descriptor {}
+use crate::{err::IgbError, regs::{rxdctl, srrctl, txdctl, Reg, RCTL, RXDCTL_ENABLE, SRRCTL_BSIZEPACKET_MASK, TXDCTL_ENABLE, TXDCTL_WTHRESH_MASK, TXDCTL_WTHRESH_MASK_1B}};
+
+pub trait Descriptor {
+    fn new() -> Self;
+    fn buffer_size(reg:Reg,reg_idx:u32) -> Result<u32,IgbError>;
+    fn enable_queue(reg:Reg,reg_idx:u32);
+}
 
 #[derive(Clone, Copy)]
 pub union AdvTxDesc {
@@ -6,7 +12,32 @@ pub union AdvTxDesc {
     pub write: AdvTxDescWB,
 }
 
-impl Descriptor for AdvTxDesc {}
+impl Descriptor for AdvTxDesc {
+    fn new() -> Self {
+        AdvTxDesc {
+            read: AdvTxDescRead {
+                buffer_addr: 0,
+                cmd_type_len: 0,
+                olinfo_status: 0,
+            },
+        }
+    }
+    fn buffer_size(reg:Reg,reg_idx:u32) -> Result<u32,IgbError> {
+        Err(IgbError::Unknown)
+    }
+    fn enable_queue(reg:Reg,reg_idx:u32) {
+        let mut txdctl_value = reg.read_32(txdctl(reg_idx));
+        txdctl_value |= TXDCTL_ENABLE;
+        txdctl_value &= !TXDCTL_WTHRESH_MASK;
+        txdctl_value |= TXDCTL_WTHRESH_MASK_1B;
+        reg.write_32(txdctl(reg_idx), txdctl_value);
+        loop {
+            if reg.read_32(txdctl(reg_idx)) & TXDCTL_ENABLE != 0 {
+                break;
+            }
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -30,7 +61,39 @@ pub union AdvRxDesc {
     pub write: AdvRxDescWB,
 }
 
-impl Descriptor for AdvRxDesc {}
+impl Descriptor for AdvRxDesc {
+    fn new() -> Self {
+        AdvRxDesc {
+            read: AdvRxDescRead {
+                pkt_addr: 0,
+                hdr_addr: 0,
+            },
+        }
+    }
+    fn buffer_size(reg: Reg, reg_idx: u32) -> Result<u32, IgbError> {
+        if reg.read_32(srrctl(reg_idx)) & SRRCTL_BSIZEPACKET_MASK == 0{
+            match reg.read_reg::<RCTL>() & RCTL::SZ_MASK {
+                RCTL::SZ_2048 => Ok(2048),
+                RCTL::SZ_1024 => Ok(1024),
+                RCTL::SZ_512 => Ok(512),
+                RCTL::SZ_256 => Ok(256),
+                _ => Err(IgbError::Unknown),
+            }
+        }else {
+            Ok(reg.read_32(srrctl(reg_idx)) & SRRCTL_BSIZEPACKET_MASK)
+        }
+    }
+    fn enable_queue(reg:Reg,reg_idx:u32) {
+        let mut rxdctl_value = reg.read_32(rxdctl(reg_idx));
+        rxdctl_value |= RXDCTL_ENABLE;
+        reg.write_32(rxdctl(reg_idx), rxdctl_value);
+        loop {
+            if reg.read_32(rxdctl(reg_idx)) & RXDCTL_ENABLE != 0 {
+                break;
+            }
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 #[repr(C)]

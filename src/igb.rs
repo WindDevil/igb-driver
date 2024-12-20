@@ -100,6 +100,7 @@ impl Igb {
     }
 
     fn init_tx(&mut self) {
+        // disable tx when configing.
         self.reg.write_reg(TCTL::empty());
 
         //* 这里我们只设置一个ring
@@ -156,13 +157,14 @@ impl Igb {
                 self.reg.modify_reg(|reg:CTRL| reg | (CTRL::RFCE | CTRL::TFCE) );
             }
         }
+        //* 在半双工模式下需要编辑 TCTL_EXT*/
+        //? 由于我们选用的是PHY,所以即使是半双工模式，只需使用默认值即可
         Ok(())
     }
 
     fn setup_vlan(&mut self) {
         self.reg.write_reg(RCTL::VFE);
         //TODO setup VFTA
-        
     }
 
     pub fn mac(&self) -> [u8; 6] {
