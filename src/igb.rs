@@ -1,14 +1,14 @@
-use core::{ptr::NonNull, time::Duration};
+use core::{num, ptr::NonNull, time::Duration};
 
+use alloc::vec::Vec;
 use log::{debug, info};
 use LinkMode::*;
 
 use crate::{
     descriptor::{AdvRxDesc, AdvTxDesc},
     err::IgbError,
-    phy::Phy,
-    phy::IgbFlowControlType,
-    regs::{Reg, CTRL, CTRL_EXT, RCTL, STATUS, TCTL},
+    phy::{IgbFlowControlType, Phy},
+    regs::{Reg, CTRL, CTRL_EXT, MRQC, RCTL, STATUS, TCTL},
     ring::{Ring, DEFAULT_RING_SIZE},
 };
 
@@ -20,21 +20,21 @@ pub enum LinkMode {
 
 pub struct Igb {
     reg: Reg,
-    tx_ring: Ring<AdvTxDesc>,
-    rx_ring: Ring<AdvRxDesc>,
+    tx_rings: Vec<Ring<AdvTxDesc>>,
+    rx_rings: Vec<Ring<AdvRxDesc>>,
     phy: Phy,
 }
 
 impl Igb {
     pub fn new(bar0: NonNull<u8>) -> Result<Self, IgbError> {
         let reg = Reg::new(bar0);
-        let tx_ring = Ring::new(reg, DEFAULT_RING_SIZE)?;
-        let rx_ring = Ring::new(reg, DEFAULT_RING_SIZE)?;
+        let tx_rings = Vec::new();
+        let rx_rings = Vec::new();
 
         Ok(Self {
             reg,
-            tx_ring,
-            rx_ring,
+            tx_rings,
+            rx_rings,
             phy: Phy::new(reg),
         })
     }
@@ -81,19 +81,39 @@ impl Igb {
         // set up multicast table array.
         self.reg.setup_mta();
 
-        self.rx_ring.init();
+        //* 这里我们只设置一个ring
+        self.init_rx_rings(1);
          
         // it is best to leave the receive logic disabled (EN = 0b) until after the receive descriptor ring has been initialized
         // If VLANs are not used, software should clear VFE.
         self.reg.write_reg(RCTL::RXEN | RCTL::SZ_256);
+        //* 为多接收队列设置MRQC */
+        //? 这里我们不设置
+    }
+
+    fn init_rx_rings(&mut self,num:u32) {
+        for _ in 0..num {
+            let mut ring = Ring::<AdvRxDesc>::new(self.reg, DEFAULT_RING_SIZE).unwrap();
+            ring.init();
+            self.rx_rings.push(ring);
+        }
     }
 
     fn init_tx(&mut self) {
         self.reg.write_reg(TCTL::empty());
 
-        self.tx_ring.init();
+        //* 这里我们只设置一个ring
+        self.init_tx_rings(1);
 
         self.reg.write_reg(TCTL::EN);
+    }
+
+    fn init_tx_rings(&mut self,num:u32) {
+        for _ in 0..num {
+            let mut ring = Ring::<AdvTxDesc>::new(self.reg, DEFAULT_RING_SIZE).unwrap();
+            ring.init();
+            self.tx_rings.push(ring);
+        }
     }
 
     fn set_link_mode(&mut self, mode:LinkMode) -> Result<(), IgbError>{

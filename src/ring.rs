@@ -1,7 +1,9 @@
+use core::time::Duration;
+
 use alloc::vec::Vec;
 use dma_api::{DVec, Direction};
 
-use crate::{descriptor::Descriptor, err::IgbError, regs::{rdbah, rdbal, rdlen, srrctl, Reg, RCTL,SRRCTL_BSIZEPACKET_MASK}};
+use crate::{descriptor::Descriptor, err::IgbError, regs::{rdbah, rdbal, rdlen, rxdctl, srrctl, Reg, RCTL, RXDCTL_ENABLE, SRRCTL_BSIZEPACKET_MASK}};
 
 pub const DEFAULT_RING_SIZE: usize = 256;
 
@@ -57,5 +59,17 @@ impl<D: Descriptor> Ring<D> {
         self.reg.write_32(rdbal(self.reg_idx), (phy_addr & 0x00000000ffffffff) as u32);
         self.reg.write_32(rdbah(self.reg_idx), (phy_addr >> 32) as u32);
         self.reg.write_32(rdlen(self.reg_idx), self.count*128);
+        //* Enable header split and header replication */
+        //? 这里我们不设置
+        //* enable queue */
+        let mut rxdctl_value = self.reg.read_32(rxdctl(self.reg_idx));
+        rxdctl_value |= RXDCTL_ENABLE;
+        self.reg.write_32(rxdctl(self.reg_idx), rxdctl_value);
+        loop {
+            if self.reg.read_32(rxdctl(self.reg_idx)) & RXDCTL_ENABLE != 0 {
+                break;
+            }
+        }
+        
     }
 }

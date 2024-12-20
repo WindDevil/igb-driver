@@ -171,13 +171,15 @@ pub fn rdt(i: u32) -> u32 {
 }
 
 /* Receive Descriptor Control */
-fn rxdctl(i: u32) -> u32 {
+pub fn rxdctl(i: u32) -> u32 {
     if i <4{
         0x02828+i*0x100
     } else {
         0x0C028+i*0x040
     }
 }
+
+pub const RXDCTL_ENABLE:u32 = 0x02000000;
 
 /* Rx DCA Control Registers */
 fn rxctl(i: u32) -> u32 {
