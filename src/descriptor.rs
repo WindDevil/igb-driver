@@ -48,6 +48,12 @@ pub struct AdvRxDescWB {
     pub vlan: u16,
 }
 
+impl AdvRxDescRead {
+    pub fn set_packet_address(&mut self, packet_buffer_address: u64) {
+        self.pkt_addr = packet_buffer_address;
+    }
+}
+
 #[derive(Clone, Copy)]
 pub union LoDword {
     pub data: u32,

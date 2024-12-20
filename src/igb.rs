@@ -85,7 +85,7 @@ impl Igb {
          
         // it is best to leave the receive logic disabled (EN = 0b) until after the receive descriptor ring has been initialized
         // If VLANs are not used, software should clear VFE.
-        self.reg.write_reg(RCTL::RXEN | RCTL::SZ_4096);
+        self.reg.write_reg(RCTL::RXEN | RCTL::SZ_256);
     }
 
     fn init_tx(&mut self) {

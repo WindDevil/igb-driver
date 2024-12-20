@@ -124,8 +124,9 @@ fn rah(i: u32) -> u32 {
     }
 }
 
+//* 队列设置寄存器 */
 /* Receive Descriptor Base Address Low*/
-fn rdbal(i: u32) -> u32 {
+pub fn rdbal(i: u32) -> u32 {
     if i <4{
         0x02800+i*0x100
     } else {
@@ -134,7 +135,7 @@ fn rdbal(i: u32) -> u32 {
 }
 
 /* Receive Descriptor Base Address High*/
-fn rdbah(i: u32) -> u32 {
+pub fn rdbah(i: u32) -> u32 {
     if i <4{
         0x02804+i*0x100
     } else {
@@ -143,7 +144,7 @@ fn rdbah(i: u32) -> u32 {
 }
 
 /* Receive Descriptor Ring Length */
-fn rdlen(i: u32) -> u32 {
+pub fn rdlen(i: u32) -> u32 {
     if i <4{
         0x02808+i*0x100
     } else {
@@ -152,7 +153,7 @@ fn rdlen(i: u32) -> u32 {
 }
 
 /* Receive Descriptor Head */
-fn rdh(i: u32) -> u32 {
+pub fn rdh(i: u32) -> u32 {
     if i <4{
         0x02810+i*0x100
     } else {
@@ -161,7 +162,7 @@ fn rdh(i: u32) -> u32 {
 }
 
 /* Receive Descriptor Tail */
-fn rdt(i: u32) -> u32 {
+pub fn rdt(i: u32) -> u32 {
     if i <4{
         0x02818+i*0x100
     } else {
@@ -169,7 +170,7 @@ fn rdt(i: u32) -> u32 {
     }
 }
 
-/* R */
+/* Receive Descriptor Control */
 fn rxdctl(i: u32) -> u32 {
     if i <4{
         0x02828+i*0x100
@@ -178,8 +179,8 @@ fn rxdctl(i: u32) -> u32 {
     }
 }
 
-/* */
-fn rxctrl(i: u32) -> u32 {
+/* Rx DCA Control Registers */
+fn rxctl(i: u32) -> u32 {
     if i <4{
         0x02814+i*0x100
     } else {
@@ -187,19 +188,124 @@ fn rxctrl(i: u32) -> u32 {
     }
 }
 
+//* 包拆分,复制 相关寄存器 */
 /* Split and Replication Receive Control */
-fn srrctl(i: u32) -> u32 {
-    if i <4{
-        0x0280C+i*0x100
-    } else {
-        0x0C00C+i*0x040
-    }
+pub fn srrctl(i: u32) -> u32 {
+    0x0C00C+i*0x040
 }
+
+pub const SRRCTL_BSIZEPACKET_MASK:u32 = 0x7F;
+pub const SRRCTRL_BSIZEHEADER_MASK:u32 = 0xF00;
 
 /* Packet Split Receive Type */
 fn psrtype(i: u32) -> u32 {
     0x05480+i*4
 }
+
+//* L2包过滤设置相关寄存器 */
+/* EType Queue Filter */
+fn etqf(i: u32) -> u32 {
+    0x05CB0 + i*4
+}
+
+/* Unicast Filter */
+/* RAL, RAH, MMAL, and MMAH registers */
+
+/* Multicast Filter */
+/* RCTL.MO */
+
+//* 五元组过滤器相关寄存器 */
+fn ftqf(i: u32) -> u32 {
+    0x059E0 + i*4
+}
+
+fn spqf(i: u32) -> u32 {
+    0x059C0 + i*4
+}
+
+fn imir(i: u32) -> u32 {
+    0x05A80 + i*4
+}
+
+fn imir_ext(i: u32) -> u32 {
+    0x05AA0 + i*4
+}
+
+fn daqf(i: u32) -> u32 {
+    0x059A0 + i*4
+}
+
+fn saqf(i: u32) -> u32 {
+    0x05980 + i*4
+}
+
+//* SYN 包过滤器 相关寄存器 */
+fn synqf(i: u32) -> u32 {
+    0x055FC + i*4
+}
+
+//* Multiple Receive Queues Command Register */
+bitflags! {
+    pub struct MRQC: u32 {
+        const ENABLE_RSS_4Q = 0x00000002;  // Enable RSS in 4 queues
+        const ENABLE_RSS_8Q = 0x00000002; // Enable RSS in 8 queues
+        const ENABLE_VMDQ = 0x00000003;  // Enable VMDq
+        const ENABLE_VMDQ_RSS_2Q = 0x00000005;  // Enable VMDq and RSS in 2 queues
+        const RSS_FIELD_MASK = 0xFFFF0000;  // RSS field mask
+        const RSS_FIELD_IPV4_TCP = 0x00010000; // RSS on IPv4 TCP
+        const RSS_FIELD_IPV6_TCP_EX = 0x00040000; // RSS on IPv6 TCP with extension headers
+        const RSS_FIELD_IPV6 = 0x00100000; // RSS on IPv6 TCP
+        const RSS_FIELD_IPV6_EX = 0x00200000; // RSS on IPv6 with extension headers
+        const RSS_FIELD_IPV4_UDP = 0x00400000; // RSS on IPv4 UDP
+        const RSS_FIELD_IPV6_UDP = 0x00800000; // RSS on IPv6 UDP
+        const RSS_FIELD_IPV6_UDP_EX = 0x01000000; // RSS on IPv6 UDP with extension headers
+    }
+}
+//? Note that the 
+//? RXCSUM.PCSD bit should be set 
+//? to enable reception of the RSS hash value in the receive descriptor.
+
+impl FlagReg for MRQC {
+    const REG: u32 = 0x05818;
+}
+
+//* 接收校验和控制寄存器 */
+bitflags! {
+    pub struct RXCSUM: u32 {
+        const IPOFL = 0x00000100; // IPv4 checksum offload
+        const TUOFL = 0x00000200; // TCP / UDP checksum offload
+        const CRCOFL = 0x00000800; // CRC32 offload enable
+        const IPPCSE = 0x00001000; // IP payload checksum enable
+        const PCSD = 0x00002000; // packet checksum disabled
+    }
+}
+
+impl FlagReg for RXCSUM {
+    const REG: u32 = 0x05000;
+}
+
+/* RSS Random Key Register */
+fn rssrk(i: u32) -> u32 {
+    0x05C80 + i*4
+}
+
+//* 管理控制到主机寄存器 */
+//? MANC2H 中的每一个位与一个 MDEF相对应, 用于控制是否将管理数据包同时转发到主机
+bitflags! {
+    pub struct MANC2H: u32 {
+
+    }
+}
+
+impl FlagReg for MANC2H {
+    const REG: u32 = 0x5860;
+}
+
+/* Manageability Decision Filters */
+fn mdef(i: u32) -> u32 {
+    0x05890 + i*4
+}
+
 
 bitflags! {
     pub struct CTRL: u32 {
@@ -266,6 +372,7 @@ impl FlagReg for CTRL_EXT {
 }
 
 bitflags! {
+    #[derive(PartialEq)]
     pub struct RCTL: u32 {
         const RST  = 0x00000001;        // Software reset
         const RXEN = 0x00000002;        // Receiver Enable. 0=disabled; 1=enabled
@@ -279,10 +386,12 @@ bitflags! {
         const MO_3   = 0x00003000;  // Multicast Offset. 00=bits[47:36]; 01=bits[46:35]; 10=bits[45:34]; 11=bits[43:32]
         const BAM  = 0x00008000;  // Broadcast Accept Mode. 0=ignore; 1=accept broadcast packets
 
+        const SZ_MASK   = 0x00030000;  // Rx buffer size mask
         const SZ_2048   = 0x00000000; /* Rx buffer size 2048 */
         const SZ_1024   = 0x00010000; /* Rx buffer size 1024 */
         const SZ_512    = 0x00020000; /* Rx buffer size 512 */
         const SZ_256    = 0x00030000; /* Rx buffer size 256 */
+        ///! 这里82576不支持 RCTL_BSEX 
         /* these buffer sizes are valid if E1000_RCTL_BSEX is 1 */
         const SZ_16384  = 0x00010000; /* Rx buffer size 16384 */
         const SZ_8192	= 0x00020000; /* Rx buffer size 8192 */
